@@ -9,3 +9,34 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+First load necessary packages
+
+```{r}
+library(tidyverse)
+```
+
+## Problem 1
+
+Read in the raw data of homicides and parse columns
+
+```{r read_data, message=FALSE, warning=FALSE}
+homicide = read_csv(file = "./data/homicide-data.csv",
+                    col_types = "cccccdcccddc")
+```
+
+Create a city_state variable and a binary variable indicating whether the homicide is solved and tidy the dataset as required
+
+```{r tidy_data}
+homicide_tidy = homicide %>% 
+  mutate(city_state = str_c(city, ",", state)) %>% 
+  mutate(result = ifelse(disposition == "Closed by arrest", "solved", "unsolved")) %>% 
+  filter(city_state != "Dallas,TX" & city_state != "Phoenix,AZ" & city_state != "Kansas City,MO" & city_state != "Tulsa,AL") %>% 
+  mutate(victim_race = ifelse(victim_race == "White", "white", "non-white")) %>% 
+  mutate(victim_race = as_factor(victim_race))
+
+#relevel "race" factor, "white" as reference
+homicide_tidy$victim_race = relevel(homicide_tidy$victim_race, ref = "white")
+```
+
+
+

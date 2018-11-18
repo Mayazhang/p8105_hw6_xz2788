@@ -56,7 +56,9 @@ logi_balti %>%  broom::tidy()
 Obtain the estimate and CI of OR
 
 ```{r extract_OR}
-conf_inter = logi_balti %>% broom::confint_tidy()
+conf_inter = logi_balti %>% 
+  broom::confint_tidy() %>% 
+  mutate(conf.low = exp(conf.low), conf.high = exp(conf.high))
 logi_balti %>% 
   broom::tidy() %>% 
   mutate(OR = exp(estimate)) %>% 
@@ -74,7 +76,8 @@ First creat a function to extract OR and 95%CI
 ```{r creat_function}
 odds_confi = function(x){
   
-  ci = broom::confint_tidy(x)
+  ci = broom::confint_tidy(x) %>% 
+    mutate(conf.low = exp(conf.low), conf.high = exp(conf.high))
   or_ci = x %>% 
     broom::tidy() %>% 
     mutate(OR = exp(estimate)) %>% 
@@ -90,7 +93,7 @@ odds_confi = function(x){
 Conduct glm in each city and delete "Unknown" victim sex for later modeling
 
 ```{r logit_city}
-homicide_tidy %>% 
+each_city = homicide_tidy %>% 
   filter(victim_sex != "Unknown") %>% 
   group_by(city_state) %>% 
   nest() %>% 
@@ -98,8 +101,32 @@ homicide_tidy %>%
   mutate(model = map(model, odds_confi)) %>% 
   select(-data) %>% 
   unnest()
+head(each_city)
 ```
 
+Make a plot to show ORs and CIs for each city
+
+```{r plot_each_city}
+each_city %>% 
+  filter(term == "victim_racenon-white") %>% 
+  transform(city_state = reorder(city_state, OR)) %>% 
+  ggplot(aes(x = city_state, y = OR)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Estimated odds ratio and 95% CI of race",
+    x = "City",
+    y = "Estimated odds ratio of race",
+    caption = "Data from the Washington Post"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+Comment: Across the cities, Boston has the lowest estimated odds ratio for solving homicides comparing non-white victims to white victims and Tampa, FL has the highes estimated odds ratio. Only Durham and Tampa have estimated odds ratio over 1 which means in these cities, homicides of non-white victims are more likely to be solved while all other cities were the opposite, but the confidence interval included 1 which meas actually no difference between the odds ration in non-white and white victims.
+
+## Problem 2
 
 
 

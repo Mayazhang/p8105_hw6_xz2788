@@ -38,5 +38,14 @@ homicide_tidy = homicide %>%
 homicide_tidy$victim_race = relevel(homicide_tidy$victim_race, ref = "white")
 ```
 
+Fit a logistic regression model for Baltimore
+
+```{r logistic_model}
+#"solved" as reference group
+homicide_tidy %>% 
+  filter(city_state == "Baltimore,MD") %>% 
+  glm(factor(result) ~ victim_age + victim_sex + victim_race, data = ., family = "binomial") %>% 
+  broom::tidy()
+```
 
 

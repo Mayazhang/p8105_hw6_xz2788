@@ -24,6 +24,8 @@ homicide = read_csv(file = "./data/homicide-data.csv",
                     col_types = "cccccdcccddc")
 ```
 
+### Tidy data
+
 Create a city_state variable and a binary variable indicating whether the homicide is solved and tidy the dataset as required
 
 ```{r tidy_data}
@@ -38,6 +40,8 @@ homicide_tidy = homicide %>%
 homicide_tidy$victim_race = relevel(homicide_tidy$victim_race, ref = "white")
 ```
 
+### Analysis in Baltimore
+
 Fit a logistic regression model for Baltimore
 
 ```{r logistic_model}
@@ -51,17 +55,50 @@ logi_balti %>%  broom::tidy()
 
 Obtain the estimate and CI of OR
 
-```{r}
+```{r extract_OR}
 conf_inter = logi_balti %>% broom::confint_tidy()
 logi_balti %>% 
   broom::tidy() %>% 
   mutate(OR = exp(estimate)) %>% 
   select(term, OR, log_OR = estimate, p.value) %>% 
-  cbind(., conf_inter)
+  cbind(., conf_inter) %>% 
+  knitr::kable(digits = 3)
 ```
 
 From the results, we can see that in Baltimore, for non-white victims, the odds of solving homicides and unsolved ones is 0.44 times the odds of that of white victims with adjusting for age and sex, which also means that homicides of white victims were more likely to be solved.
 
+### Build logistic regression for each of the city
+
+First creat a function to extract OR and 95%CI
+
+```{r creat_function}
+odds_confi = function(x){
+  
+  ci = broom::confint_tidy(x)
+  or_ci = x %>% 
+    broom::tidy() %>% 
+    mutate(OR = exp(estimate)) %>% 
+  select(term, OR, log_OR = estimate) %>% 
+  cbind(., ci)
+  
+  return(or_ci)
+  
+}
+
+```
+
+Conduct glm in each city and delete "Unknown" victim sex for later modeling
+
+```{r logit_city}
+homicide_tidy %>% 
+  filter(victim_sex != "Unknown") %>% 
+  group_by(city_state) %>% 
+  nest() %>% 
+  mutate(model = map(data, ~glm(result ~ victim_age + victim_sex + victim_race, data = .x, family = "binomial"))) %>% 
+  mutate(model = map(model, odds_confi)) %>% 
+  select(-data) %>% 
+  unnest()
+```
 
 
 

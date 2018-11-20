@@ -156,54 +156,102 @@ birthweight = birthweight %>%
 
 ### Modeling process
 
-Select variables into the model by stepwise method
+* First check whether the birthweight is normally distributed
+
+```{r check_normality}
+birthweight %>% 
+  ggplot(aes(x = bwt)) + 
+  geom_histogram() +
+  theme_bw() +
+  labs(
+    title = "Birthweight distribution",
+    x = "Birthweight (grams)",
+    y = "Count",
+    caption = "Data from 'Birthweight' dataset")
+```
+
+From the plot, birthweight seems to be normally distributed with a little bit skewness to the left tail.
+
+* Select variables into the model by stepwise method with 'leap' function
 
 ```{r stepwise}
 regsubsets(bwt~., data = birthweight, nvmax = 5, method = "seqrep") %>% 
   summary()
 ```
 
-From the result, we can see that "bhead", "blength", "mrace", "delwt", "gaweeks" can be selected into the model, but from knowledge of medicine, "malform", "wtgain", "pnumlbw" and "pnumsga" can also be related to the birthweight of the baby, but because all the data for "pnumsga" and "pnumlbw" is `r mean(birthweight$pnumlbw)`, thus they can be removed from the model
+From the result, we can see that "bhead", "blength", "mrace", "delwt", "gaweeks", "smoken" can be selected into the model, but from knowledge of medicine, "malform", "wtgain", "pnumlbw" and "pnumsga" can also be related to the birthweight of the baby, but because all the data for "pnumsga" and "pnumlbw" is `r mean(birthweight$pnumlbw)`, thus they can be removed from the model
+
+* Decide whether add "malform" and "wtgain" into the model
 
 ```{r try_models}
-lm(bwt~bhead + blength + mrace + delwt + gaweeks, data = birthweight) %>% 
+lm(bwt~bhead + blength + mrace + delwt + gaweeks + smoken, data = birthweight) %>% 
   summary()
-lm(bwt~bhead + blength + mrace + delwt + gaweeks + 
+lm(bwt~bhead + blength + mrace + delwt + gaweeks + smoken +
      malform + wtgain, data = birthweight) %>% 
   summary()
-
-#check the collinearity among selected variables
-birthweight %>% 
-  select(bwt, bhead, blength, delwt, gaweeks, wtgain) %>% 
-  cor()
 ```
 
-Compare models with/without "delwt" and "wtgain"
+"malform" seems not to have an effect on birthweigt since the p-value of it is greater than 0.05.
+
+* Compare models with/without "wtgain" 
 
 ```{r anova_compare}
-model_1 = lm(bwt~bhead + blength + mrace + gaweeks + malform + delwt, data = birthweight)
-model_2 = lm(bwt~bhead + blength + mrace + gaweeks + malform + delwt + wtgain, data = birthweight)
+model_1 = lm(bwt~bhead + blength + mrace + gaweeks + smoken + delwt, data = birthweight)
+model_2 = lm(bwt~bhead + blength + mrace + gaweeks + smoken + delwt + wtgain, data = birthweight)
 anova(model_1, model_2)
 summary(model_1)
 summary(model_2)
 ```
 
-Because although adding "wtgain" can increase the adjusted R-square, but the magnitude is not big, thus I choose to not include "wtgain" and "malform" seems not to have effect on birthweigt, thus the final regression model is as below:
+Although adding "wtgain" can increase the adjusted R-square, but the magnitude is not big, thus I choose to not include "wtgain". 
 
-```{r final_model}
-birth_model = lm(bwt~bhead + blength + mrace + gaweeks + malform + delwt, data = birthweight)
+* Double check the collinearity among selected variables
+
+```{r collinearity_check}
+birthweight %>% 
+  select(bwt, bhead, blength, delwt, gaweeks, smoken) %>% 
+  cor()
 ```
 
-Make a plot
+* Final regression model:
+
+```{r final_model}
+birth_model = lm(bwt~bhead + blength + mrace + gaweeks + delwt + smoken, data = birthweight)
+```
+
+### Make a plot to show residuals against fitted values
 
 ```{r plot_regression}
 birthweight %>% 
   modelr::add_predictions(birth_model) %>% 
   modelr::add_residuals(birth_model) %>% 
   ggplot(aes(x = pred, y = resid)) + 
-  geom_point()
+  geom_point(alpha = .5) +
+  theme_bw() +
+  labs(
+    title = "Residual VS. fitted values plot",
+    x = "Predited birthweight (grams)",
+    y = "Residuals",
+    caption = "Data from 'Birthweight' dataset")
+plot(birth_model, 1)
 ```
 
+From the plot, we can see that when the birthweight is between a range of 2000 to 4000 grams which is also the standard birthweight of neonates, the final model can predicted the birthweight more accurately with less residuals. However, when birthweight is too small or too large, the residuals are too big to predict it accuarately.
 
+### Compare with two other models
+
+* Build other two models
+
+```{r build_two_models}
+two_pred_model = lm(bwt ~ blength + gaweeks, data = birthweight)
+intera_model = lm(bwt ~ (bhead + blength + babysex)^2 +
+                    (bhead + blength + babysex)^3, data = birthweight)
+```
+
+* Conduct cross validation
+
+```{r}
+
+```
 
 

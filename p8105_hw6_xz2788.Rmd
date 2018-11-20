@@ -13,6 +13,7 @@ First load necessary packages
 
 ```{r}
 library(tidyverse)
+library(leaps)
 ```
 
 ## Problem 1
@@ -127,6 +128,82 @@ each_city %>%
 Comment: Across the cities, Boston has the lowest estimated odds ratio for solving homicides comparing non-white victims to white victims and Tampa, FL has the highes estimated odds ratio. Only Durham and Tampa have estimated odds ratio over 1 which means in these cities, homicides of non-white victims are more likely to be solved while all other cities were the opposite, but the confidence interval included 1 which meas actually no difference between the odds ration in non-white and white victims.
 
 ## Problem 2
+
+Read in the data first
+
+```{r import_data}
+birthweight = read_csv(file = "./data/birthweight.csv.csv")
+```
+
+Look at the data first and check NAs
+
+```{r look_data}
+str(birthweight)
+skimr::skim(birthweight)
+```
+
+From the result, we can see that there is no missing value in all variables, but the classes of some variables should to be tidied.
+
+### Tidy data
+
+```{r clean_data}
+birthweight = birthweight %>% 
+  mutate(babysex = as.factor(babysex),
+         frace = as.factor(frace),
+         malform = as.factor(malform),
+         mrace = as.factor(mrace))
+```
+
+### Modeling process
+
+Select variables into the model by stepwise method
+
+```{r stepwise}
+regsubsets(bwt~., data = birthweight, nvmax = 5, method = "seqrep") %>% 
+  summary()
+```
+
+From the result, we can see that "bhead", "blength", "mrace", "delwt", "gaweeks" can be selected into the model, but from knowledge of medicine, "malform", "wtgain", "pnumlbw" and "pnumsga" can also be related to the birthweight of the baby, but because all the data for "pnumsga" and "pnumlbw" is `r mean(birthweight$pnumlbw)`, thus they can be removed from the model
+
+```{r try_models}
+lm(bwt~bhead + blength + mrace + delwt + gaweeks, data = birthweight) %>% 
+  summary()
+lm(bwt~bhead + blength + mrace + delwt + gaweeks + 
+     malform + wtgain, data = birthweight) %>% 
+  summary()
+
+#check the collinearity among selected variables
+birthweight %>% 
+  select(bwt, bhead, blength, delwt, gaweeks, wtgain) %>% 
+  cor()
+```
+
+Compare models with/without "delwt" and "wtgain"
+
+```{r anova_compare}
+model_1 = lm(bwt~bhead + blength + mrace + gaweeks + malform + delwt, data = birthweight)
+model_2 = lm(bwt~bhead + blength + mrace + gaweeks + malform + delwt + wtgain, data = birthweight)
+anova(model_1, model_2)
+summary(model_1)
+summary(model_2)
+```
+
+Because although adding "wtgain" can increase the adjusted R-square, but the magnitude is not big, thus I choose to not include "wtgain" and "malform" seems not to have effect on birthweigt, thus the final regression model is as below:
+
+```{r final_model}
+birth_model = lm(bwt~bhead + blength + mrace + gaweeks + malform + delwt, data = birthweight)
+```
+
+Make a plot
+
+```{r plot_regression}
+birthweight %>% 
+  modelr::add_predictions(birth_model) %>% 
+  modelr::add_residuals(birth_model) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point()
+```
+
 
 
 

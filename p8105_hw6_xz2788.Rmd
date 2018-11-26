@@ -271,4 +271,4 @@ crossv_mc(birthweight, 100) %>%
   theme_bw()
 ```
 
-Comment: 
+Comment: Comparing these three models, we can see that the mean square error of "final" model is the smallest which means it's the best among the three. "final" model is the model that I've built. Other other hand, model with just two predictors was the one with highest MSE.
